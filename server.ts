@@ -1,41 +1,47 @@
-// Импортируем необходимые модули
 import dotenv from 'dotenv';
 import fs from 'fs';
 import https from 'https';
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
-import { addLog } from './config/logger';
+import { addLog, addError } from './config/logger';
 
-// Загружаем переменные окружения из .env
 dotenv.config();
 
-// Создаем экземпляр приложения Express
 const app = express();
+const PORT = 443;
 
-// Подключаем middleware для парсинга JSON
+// Middleware для парсинга JSON
 app.use(express.json());
 
-// Загружаем SSL сертификаты
-const privateKey = fs.readFileSync(path.resolve(__dirname, './certs/privkey.pem'), 'utf8');
-const certificate = fs.readFileSync(path.resolve(__dirname, './certs/fullchain.pem'), 'utf8');
+// Загрузка SSL сертификатов
+const sslOptions = {
+    key: fs.readFileSync(path.join(__dirname, 'certs', 'privkey.pem')),
+    cert: fs.readFileSync(path.join(__dirname, 'certs', 'fullchain.pem')),
+};
 
-const credentials = { key: privateKey, cert: certificate };
-
-// Роут для POST-запроса webhook
+// Роут для webhook
 app.post('/webhook', (req: Request, res: Response) => {
-    // Логируем входящий запрос
-    addLog(`POST /webhook - тело запроса: ${JSON.stringify(req.body)}`);
+    addLog(`Получен POST запрос на /webhook: ${JSON.stringify(req.body)}`);
     res.sendStatus(200);
 });
 
-// Роут для GET-запроса test
-app.get('/test', (req: Request, res: Response) => {
-    // Логируем входящий запрос
-    addLog('GET /test');
+// Роут для test
+app.get('/test', (req: Request, res: Response, next: NextFunction) => {
+    addLog(`Получен GET запрос на /test`);
+    // Генерируем исключение с вероятностью 1 из 4
+    if (Math.random() < 0.25) {
+        return next(new Error('Синтетическая ошибка для целей тестирования.'));
+    }
     res.sendStatus(200);
 });
 
-// Запускаем HTTPS сервер на порту 443
-https.createServer(credentials, app).listen(443, () => {
-    addLog('Сервер запущен на порту 443');
+// Обработчик ошибок
+app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
+    addError(`Ошибка: ${err.message}`);
+    res.status(500).send('Внутренняя ошибка сервера.');
+});
+
+// Запускаем сервер
+https.createServer(sslOptions, app).listen(PORT, () => {
+    addLog(`Сервер запущен на порту ${PORT}`);
 });

@@ -1,40 +1,41 @@
 import fs from 'fs';
 import path from 'path';
 import winston from 'winston';
-import dotenv from 'dotenv';
 
-dotenv.config();
+// Определяем путь к файлу лога
+const logFilePath = process.env.LOG_FILE_PATH || path.resolve(__dirname, '../logs/express.log');
 
-const logFilePath = process.env.LOG_FILE_PATH || path.join(__dirname, '../logs/express.log');
+// Проверка существования файла лога
+function ensureLogFileExists() {
+  if (!fs.existsSync(logFilePath)) {
+    fs.mkdirSync(path.dirname(logFilePath), { recursive: true });
+    fs.writeFileSync(logFilePath, '');
+  }
+}
 
+// Конфигурация Winston логгера
 const logger = winston.createLogger({
-    level: 'info',
-    format: winston.format.combine(
-        winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
-        winston.format.printf(({ timestamp, level, message }) => {
-            return `[${timestamp}] [${level.toUpperCase()}]: ${message}`;
-        })
-    ),
-    transports: [
-        new winston.transports.File({ filename: logFilePath }),
-        new winston.transports.Console({
-            format: winston.format.combine(
-                winston.format.colorize(),
-                winston.format.printf(({ level, message, timestamp }) => {
-                    return `[${timestamp}] [${level}]: ${message}`;
-                })
-            )
-        })
-    ]
+  level: 'info',
+  format: winston.format.combine(
+    winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+    winston.format.printf(({ level, message, timestamp }) => {
+      return `[${timestamp}] ${level.toUpperCase()}: ${message}`;
+    })
+  ),
+  transports: [
+    new winston.transports.File({ filename: logFilePath }),
+    new winston.transports.Console({ format: winston.format.colorize({ all: true }) })
+  ]
 });
 
-/**
- * Добавляет запись в лог-файл и выводит в консоль.
- * @param text Текст для записи в лог.
- */
+// Функция для добавления лога (не ошибок)
 export function addLog(text: string): void {
-    if (!fs.existsSync(logFilePath)) {
-        fs.writeFileSync(logFilePath, '');
-    }
-    logger.info(text);
+  ensureLogFileExists();
+  logger.info(text);
+}
+
+// Функция для добавления ошибок
+export function addError(text: string): void {
+  ensureLogFileExists();
+  logger.error(text);
 }
