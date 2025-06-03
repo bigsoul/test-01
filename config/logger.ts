@@ -2,18 +2,16 @@ import fs from 'fs';
 import path from 'path';
 import winston from 'winston';
 
-// Определяем путь к файлу лога
 const logFilePath = process.env.LOG_FILE_PATH || path.resolve(__dirname, '../logs/express.log');
 
-// Проверка существования файла лога
-function ensureLogFileExists() {
+// Проверка и создание файла лога, если отсутствует
+const ensureLogFile = () => {
   if (!fs.existsSync(logFilePath)) {
-    fs.mkdirSync(path.dirname(logFilePath), { recursive: true });
-    fs.writeFileSync(logFilePath, '');
+    fs.writeFileSync(logFilePath, '', { flag: 'w' });
   }
-}
+};
 
-// Конфигурация Winston логгера
+// Конфигурация Winston
 const logger = winston.createLogger({
   level: 'info',
   format: winston.format.combine(
@@ -24,18 +22,25 @@ const logger = winston.createLogger({
   ),
   transports: [
     new winston.transports.File({ filename: logFilePath }),
-    new winston.transports.Console({ format: winston.format.colorize({ all: true }) })
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.printf(({ level, message, timestamp }) => {
+          return `[${timestamp}] ${level}: ${message}`;
+        })
+      )
+    })
   ]
 });
 
-// Функция для добавления лога (не ошибок)
+// Добавление обычного лога
 export function addLog(text: string): void {
-  ensureLogFileExists();
+  ensureLogFile();
   logger.info(text);
 }
 
-// Функция для добавления ошибок
+// Добавление ошибки
 export function addError(text: string): void {
-  ensureLogFileExists();
+  ensureLogFile();
   logger.error(text);
 }
