@@ -2,15 +2,13 @@ import express, { Request, Response } from 'express';
 import { addLog, addError } from '../config/logger';
 
 export function test(req: Request, res: Response): void {
-  addLog(`Получен запрос на /test`);
+    addLog('Получен GET запрос для тестирования');
 
-  // Симуляция ошибки 1 раз из 4
-  const randomNumber = Math.floor(Math.random() * 4);
-  if (randomNumber === 0) {
-    const errorMessage = 'Синтетическая ошибка для теста';
-    addError(errorMessage);
-    throw new Error(errorMessage);
-  }
+    if (Math.floor(Math.random() * 4) === 0) {
+        const error = new Error('Синтетическая ошибка для тестирования');
+        addError(`Ошибка: ${error.message}`);
+        throw error;
+    }
 
-  res.status(200).send('OK');
+    res.sendStatus(200);
 }
